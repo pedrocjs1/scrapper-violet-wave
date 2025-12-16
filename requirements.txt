@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pandas
+gspread
+openai
+twilio
+apscheduler
+python-dotenv
+pydantic-settings
