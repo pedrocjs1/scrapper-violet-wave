@@ -6,10 +6,15 @@ from fastapi.responses import FileResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from pydantic import BaseModel 
+from fastapi import Depends
+from typing import Optional # Importante para el campo opcional
 
 # Imports de tus módulos
 from app.routes import webhook
 from app.scheduler.tasks import daily_outreach_job
+from app.db import database, models
+from app.routers import auth
+from app.core import security
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -20,72 +25,73 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start scheduler
     scheduler.add_job(daily_outreach_job, 'cron', hour=10, minute=0, id="daily_outreach")
     scheduler.start()
     logger.info("Scheduler started.")
+    models.Base.metadata.create_all(bind=database.engine)
     yield
-    # Shutdown: Stop scheduler
     scheduler.shutdown()
     logger.info("Scheduler shut down.")
 
 app = FastAPI(title="Violet Wave Dashboard", lifespan=lifespan)
 
-# --- MONTAR CARPETA STATIC ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Include Routers
 app.include_router(webhook.router)
+app.include_router(auth.router)
 
-# --- MODELOS DE DATOS ---
+# --- MODELO ACTUALIZADO ---
 class ScrapeRequest(BaseModel):
+    apify_token: Optional[str] = None # <--- NUEVO CAMPO OPCIONAL
     city: str
     country: str
-    niche: str          # <--- Nuevo
-    spreadsheet_id: str # <--- Nuevo
+    niche: str          
+    spreadsheet_id: str 
     limit: int = 10
 
-# --- RUTA PRINCIPAL (DASHBOARD VISUAL) ---
 @app.get("/")
-def read_dashboard():
-    return FileResponse('static/index.html')
+def read_login():
+    return FileResponse('static/login.html')
 
-# --- ENDPOINT PARA BUSCAR LEADS (API) ---
+@app.get("/dashboard")
+def read_dashboard():
+    return FileResponse('static/dashboard.html')
+
+# --- ENDPOINT PROTEGIDO ---
 @app.post("/api/buscar-leads")
-async def buscar_leads_google_maps(request: ScrapeRequest):
-    """
-    DASHBOARD TOOL: Busca leads en Google Maps y llena el Excel indicado.
-    """
+async def buscar_leads_google_maps(
+    request: ScrapeRequest, 
+    current_user: models.User = Depends(security.get_current_user)
+):
     from app.services.scraper_service import ScraperService
     
-    logger.info(f"🔎 Buscando '{request.niche}' en {request.city}, {request.country}")
+    logger.info(f"🔎 Buscando '{request.niche}' (User: {current_user.email})")
     
     scraper = ScraperService()
-    # Pasamos TODOS los parámetros nuevos
+    
+    # Pasamos el token del usuario (si lo puso) al servicio
     result = scraper.scrape_and_save(
         city=request.city, 
         country=request.country, 
         niche=request.niche,
         spreadsheet_id=request.spreadsheet_id,
-        limit=request.limit
+        limit=request.limit,
+        apify_token=request.apify_token # <--- Enviamos el token
     )
     
     return result
 
-# --- ENDPOINT DE PRUEBA MANUAL (OUTREACH) ---
 @app.post("/test-manual")
-async def test_manual_trigger():
-    logger.info(">>> 🔴 INICIANDO PRUEBA MANUAL DESDE ENDPOINT <<<")
+async def test_manual_trigger(current_user: models.User = Depends(security.get_current_user)):
+    logger.info(f">>> 🔴 INICIANDO PRUEBA MANUAL (User: {current_user.email}) <<<")
     try:
-        # Ejecutamos la tarea manualmente.
         if asyncio.iscoroutinefunction(daily_outreach_job):
             await daily_outreach_job()
         else:
             daily_outreach_job()
-            
-        return {"status": "success", "message": "Tarea ejecutada. Revisa la consola/terminal para ver los logs."}
+        return {"status": "success", "message": "Tarea ejecutada."}
     except Exception as e:
-        logger.error(f"Error en prueba manual: {e}")
+        logger.error(f"Error: {e}")
         return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":

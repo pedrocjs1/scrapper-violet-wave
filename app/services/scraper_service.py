@@ -1,5 +1,5 @@
 from apify_client import ApifyClient
-from app.core.config import settings
+# from app.core.config import settings  <-- Ya no necesitamos esto aquí
 from app.services.gsheet_service import GSheetService
 import logging
 
@@ -7,38 +7,50 @@ logger = logging.getLogger(__name__)
 
 class ScraperService:
     def __init__(self):
-        self.client = ApifyClient(settings.APIFY_TOKEN)
-        # Nota: Ya no instanciamos GSheetService aquí por defecto.
-        # Lo haremos dinámicamente en el método scrape_and_save
+        # ¡IMPORTANTE! Quitamos el cliente por defecto.
+        # Si no hay token del usuario, no se usa nada.
+        pass 
 
-    def scrape_and_save(self, city: str, country: str, niche: str, spreadsheet_id: str, limit: int):
+    def scrape_and_save(self, city: str, country: str, niche: str, spreadsheet_id: str, limit: int, apify_token: str = None):
         """
-        Busca leads por Nicho + Ubicación y guarda en el Sheet ID especificado.
+        Busca leads usando OBLIGATORIAMENTE el token del usuario.
         """
-        # Construimos la búsqueda dinámica: "Dentistas en Mendoza, Argentina"
-        search_query = f"{niche} en {city}, {country}"
-        print(f"[INFO] Iniciando busqueda: '{search_query}' -> Sheet Destino: {spreadsheet_id}")
+        # 1. Validación Estricta del Token
+        if not apify_token or len(apify_token) < 10:
+            logger.warning("Intento de scraping sin token de Apify válido.")
+            return {
+                "status": "error", 
+                "message": "⚠️ Error: Debes ingresar TU Token de Apify para poder buscar leads. No se ha realizado ninguna búsqueda."
+            }
 
-        # 1. Configurar Apify
+        logger.info(f"[INFO] Usando Token del Usuario: {apify_token[:5]}...")
+        client = ApifyClient(apify_token)
+
+        search_location = f"{niche} en {city}, {country}"
+        print(f"[INFO] Buscando: '{search_location}' (Limit: {limit})")
+
+        # 2. Configurar Apify
         run_input = {
-            "searchStringsArray": [search_query], 
+            "searchStringsArray": [search_location], 
             "maxCrawledPlacesPerSearch": limit,
             "language": "es",
-            "onlyDirectPlaces": False, # False permite encontrar más negocios relacionados al nicho
+            "onlyDirectPlaces": False, 
         }
 
         try:
             # Ejecutar el actor
-            run = self.client.actor("compass/crawler-google-places").call(run_input=run_input)
+            run = client.actor("compass/crawler-google-places").call(run_input=run_input)
         except Exception as e:
             print(f"[ERROR] Fallo Apify: {e}")
+            # Mensaje más amigable si el token es inválido
+            if "authentication failed" in str(e).lower() or "token" in str(e).lower():
+                 return {"status": "error", "message": "El Token de Apify ingresado no es válido o ha expirado."}
             return {"status": "error", "message": str(e)}
 
-        # 2. Procesar resultados
+        # 3. Procesar resultados
         leads_found = []
         try:
-            dataset_items = self.client.dataset(run["defaultDatasetId"]).iterate_items()
-            
+            dataset_items = client.dataset(run["defaultDatasetId"]).iterate_items()
             for item in dataset_items:
                 phone = item.get("phoneUnformatted") or item.get("phone")
                 name = item.get("title")
@@ -55,21 +67,22 @@ class ScraperService:
         except Exception as e:
              return {"status": "error", "message": f"Error procesando dataset: {str(e)}"}
 
-        print(f"[INFO] Encontrados {len(leads_found)} leads brutos. Filtrando duplicados...")
+        print(f"[INFO] Encontrados {len(leads_found)} leads brutos.")
 
-        # 3. Guardar en el Excel ESPECÍFICO
+        # 4. Guardar en Excel y obtener reporte
         try:
-            # Instanciamos el servicio CON el ID que mandó el usuario desde el Dashboard
             gsheet_specific = GSheetService(spreadsheet_id=spreadsheet_id)
-            added_count = gsheet_specific.add_leads(leads_found)
+            # save_report ahora es un diccionario: {"added": X, "duplicates": Y}
+            save_report = gsheet_specific.add_leads(leads_found)
             
             return {
                 "status": "success", 
                 "found": len(leads_found), 
-                "added_new": added_count,
+                # Usamos los datos del nuevo reporte
+                "added_new": save_report['added'],
+                "duplicates": save_report['duplicates'],
                 "city": city,
-                "country": country,
                 "niche": niche
             }
         except Exception as e:
-            return {"status": "error", "message": f"Error conectando al Excel (ID incorrecto o sin permisos): {str(e)}"}
+            return {"status": "error", "message": f"Error Excel: {str(e)}"}

@@ -40,10 +40,10 @@ class GSheetService:
         """Deja solo los números."""
         return re.sub(r'\D', '', str(phone))
 
-    def add_leads(self, leads_list: list) -> int:
+    def add_leads(self, leads_list: list) -> dict:
         """
         Agrega leads validando que el teléfono no exista ya en el Excel.
-        Retorna la cantidad de leads agregados.
+        Retorna un reporte con la cantidad de guardados y duplicados.
         """
         try:
             # 1. Obtener todos los teléfonos actuales del Excel para comparar
@@ -57,6 +57,7 @@ class GSheetService:
 
             rows_to_add = []
             count_new = 0
+            total_processed = len(leads_list)
 
             for lead in leads_list:
                 raw_phone = lead.get('Phone', '')
@@ -81,14 +82,22 @@ class GSheetService:
             if rows_to_add:
                 self.sheet.append_rows(rows_to_add)
                 print(f"[OK] Se agregaron {count_new} leads NUEVOS.")
-            else:
+            
+            # Calculamos los duplicados
+            duplicates_count = total_processed - count_new
+
+            if count_new == 0:
                 print("[AVISO] Todos los leads encontrados ya existian en el Excel.")
             
-            return count_new
+            # Retornamos el reporte completo para el frontend
+            return {
+                "added": count_new,
+                "duplicates": duplicates_count
+            }
                 
         except Exception as e:
             print(f"[ERROR] Guardando en Excel: {e}")
-            return 0
+            return {"added": 0, "duplicates": 0}
 
     def update_status_by_phone(self, target_phone: str, new_status: str):
         """Busca el teléfono limpiando símbolos para asegurar coincidencia."""

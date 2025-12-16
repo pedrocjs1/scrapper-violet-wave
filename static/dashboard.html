@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Violet Wave AI | Dashboard</title>
+    <style>
+        :root {
+            --vw-purple: #753BBD;
+            --vw-black: #101820;
+            --vw-darker: #0a0f14;
+            --vw-dark-grey: #20272F;
+            --vw-white: #FFFFFF;
+            --vw-green: #4caf50;
+            --vw-red: #ff4d4d;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--vw-black);
+            color: var(--vw-white);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- BARRA SUPERIOR --- */
+        .top-nav {
+            background-color: var(--vw-darker);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .welcome-msg {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .welcome-msg span {
+            color: var(--vw-purple);
+        }
+
+        .logout-btn {
+            background-color: var(--vw-red);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        /* --- CONTENEDOR --- */
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+
+        .container {
+            background-color: var(--vw-dark-grey);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        /* --- PANEL ADMIN --- */
+        .admin-panel {
+            display: none;
+            background-color: #2a1a35;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid var(--vw-purple);
+            box-shadow: 0 10px 30px rgba(117, 59, 189, 0.2);
+        }
+
+        .admin-title {
+            color: var(--vw-purple);
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- FORMULARIOS --- */
+        h1 {
+            margin-bottom: 5px;
+            font-weight: 300;
+        }
+
+        h1 span {
+            color: var(--vw-purple);
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-bottom: 25px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+            width: 100%;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            color: #ccc;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--vw-black);
+            border: 1px solid #444;
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--vw-purple);
+        }
+
+        button.action-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--vw-purple);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        button.action-btn:hover {
+            background-color: #5a2d91;
+        }
+
+        button.admin-btn {
+            background-color: var(--vw-green);
+        }
+
+        button.admin-btn:hover {
+            background-color: #388e3c;
+        }
+
+        .helper-text {
+            font-size: 0.75em;
+            color: #777;
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .copy-link {
+            color: var(--vw-purple);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--vw-purple);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #resultArea,
+        #adminResult {
+            margin-top: 20px;
+            font-size: 0.9em;
+            display: none;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .success {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: #81c784;
+            border: 1px solid #4caf50;
+        }
+
+        .error {
+            background-color: rgba(244, 67, 54, 0.2);
+            color: #e57373;
+            border: 1px solid #f44336;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="top-nav">
+        <div class="welcome-msg" id="welcomeMsg">Hola!</div>
+        <button onclick="logout()" class="logout-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Cerrar Sesión
+        </button>
+    </header>
+
+    <div class="main-wrapper">
+
+        <div id="adminPanel" class="admin-panel">
+            <div class="admin-title">👑 Panel de Administración</div>
+            <p style="font-size: 0.9em; margin-bottom: 20px; color: #ddd;">Crear cuenta para nuevo Setter</p>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label>Email del Nuevo Usuario</label>
+                    <input type="email" id="new_email" placeholder="ej: delfina.setter@violetwave.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="new_password" placeholder="Mínimo 6 caracteres" required>
+                </div>
+                <button type="submit" class="action-btn admin-btn">Crear Usuario</button>
+            </form>
+            <div id="adminResult"></div>
+        </div>
+
+        <div class="container">
+            <h1>Violet <span>Wave</span></h1>
+            <p class="subtitle">Generador de Leads Multi-Nicho</p>
+
+            <form id="leadForm">
+                <div class="form-group">
+                    <label>Tu Token de Apify</label>
+                    <input type="password" id="apify_token" placeholder="Pega tu API Token aquí" required>
+                    <div class="helper-text">
+                        <span>🔒 Obligatorio. Se usará tu cuenta de Apify.</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Nicho / Rubro</label>
+                    <input type="text" id="niche" placeholder="Ej: Dentistas, Inmobiliarias, Gimnasios" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <input type="text" id="city" placeholder="Ej: Córdoba" required>
+                    </div>
+                    <div class="form-group">
+                        <label>País</label>
+                        <select id="country">
+                            <option value="Argentina" selected>Argentina</option>
+                            <option value="Colombia">Colombia</option>
+                            <option value="Mexico">México</option>
+                            <option value="Spain">España</option>
+                            <option value="Chile">Chile</option>
+                            <option value="Peru">Perú</option>
+                            <option value="United States">USA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>ID de Google Sheet (Destino)</label>
+                    <input type="text" id="spreadsheet_id" placeholder="Copia el ID largo de la URL del Excel" required>
+                    <div class="helper-text">
+                        <span>⚠️ Comparte el Sheet con el Bot</span>
+                        <span class="copy-link" onclick="copyBotEmail()">Copiar Email del Bot</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Cantidad (Máx)</label>
+                    <input type="number" id="limit" value="10" min="1" max="50">
+                </div>
+
+                <button type="submit" id="btnSubmit" class="action-btn">🚀 Buscar y Exportar</button>
+            </form>
+
+            <div class="loader" id="loader"></div>
+            <div id="resultArea"></div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_EMAIL = "admin@violetwave.com";
+        const BOT_EMAIL = "leadbot@n8n-sheets-mcp.iam.gserviceaccount.com";
+
+        const token = localStorage.getItem('token');
+        if (!token) { window.location.href = '/'; }
+
+        // Cargar Token de Apify guardado
+        const savedApifyToken = localStorage.getItem('user_apify_token');
+        if (savedApifyToken) {
+            document.getElementById('apify_token').value = savedApifyToken;
+        }
+
+        function parseJwt(token) { try { return JSON.parse(atob(token.split('.')[1])); } catch (e) { return null; } }
+        function extractName(email) {
+            if (!email) return "Usuario";
+            let namePart = email.split('@')[0];
+            let firstName = namePart.split(/[.-]/)[0];
+            return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        }
+
+        const userData = parseJwt(token);
+        const userEmail = userData ? userData.sub : null;
+
+        if (userEmail) {
+            document.getElementById('welcomeMsg').innerHTML = `Hola, <span>${extractName(userEmail)}</span>!`;
+            if (userEmail === ADMIN_EMAIL) {
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+        }
+
+        function copyBotEmail() { prompt("Copia este email:", BOT_EMAIL); }
+        function logout() { localStorage.removeItem('token'); window.location.href = '/'; }
+
+        // --- CREAR USUARIO ---
+        document.getElementById('createUserForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const emailInput = document.getElementById('new_email').value;
+            const passwordInput = document.getElementById('new_password').value;
+            const resultDiv = document.getElementById('adminResult');
+            const submitBtn = this.querySelector('button[type="submit"]');
+
+            resultDiv.style.display = 'none';
+            submitBtn.disabled = true; submitBtn.innerText = "Creando...";
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailInput, password: passwordInput })
+                });
+                const data = await response.json();
+                resultDiv.style.display = 'block';
+                submitBtn.disabled = false; submitBtn.innerText = "Crear Usuario";
+
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `✅ Usuario <b>${emailInput}</b> creado correctamente.`;
+                    document.getElementById('createUserForm').reset();
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerText = "Error: " + (data.detail || "Error desconocido");
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                submitBtn.disabled = false; submitBtn.innerText = "Crear Usuario";
+                resultDiv.className = 'error';
+                resultDiv.innerText = "Error de conexión.";
+            }
+        });
+
+        // --- BUSCAR LEADS ---
+        document.getElementById('leadForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit');
+            const loader = document.getElementById('loader');
+            const resultArea = document.getElementById('resultArea');
+
+            // Validación de Token de Apify en frontend
+            const apifyTokenInput = document.getElementById('apify_token').value;
+            if (!apifyTokenInput || apifyTokenInput.length < 10) {
+                alert("⚠️ Debes ingresar un Token de Apify válido.");
+                document.getElementById('apify_token').focus();
+                return;
+            }
+            localStorage.setItem('user_apify_token', apifyTokenInput);
+
+            btn.disabled = true; btn.style.opacity = "0.5"; btn.innerText = "Procesando...";
+            loader.style.display = "block"; resultArea.style.display = "none";
+
+            const payload = {
+                apify_token: apifyTokenInput,
+                niche: document.getElementById('niche').value,
+                city: document.getElementById('city').value,
+                country: document.getElementById('country').value,
+                spreadsheet_id: document.getElementById('spreadsheet_id').value,
+                limit: parseInt(document.getElementById('limit').value)
+            };
+
+            try {
+                const response = await fetch('/api/buscar-leads', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    alert("Tu sesión ha expirado."); logout(); return;
+                }
+
+                const data = await response.json();
+                loader.style.display = "none"; btn.disabled = false; btn.style.opacity = "1"; btn.innerText = "🚀 Buscar y Exportar";
+                resultArea.style.display = "block";
+
+                if (data.status === 'success') {
+                    resultArea.className = "success";
+                    // NUEVO MENSAJE DE ÉXITO CON DUPLICADOS
+                    resultArea.innerHTML = `✅ <b>¡Éxito!</b><br>Nicho: ${data.niche}<br>Encontrados: ${data.found}<br>Guardados: <b>${data.added_new}</b><br>Duplicados (no guardados): ${data.duplicates}`;
+                } else {
+                    resultArea.className = "error";
+                    resultArea.innerText = "Error: " + (data.message || "Desconocido");
+                }
+            } catch (error) {
+                loader.style.display = "none"; btn.disabled = false; btn.style.opacity = "1";
+                resultArea.style.display = "block"; resultArea.className = "error";
+                resultArea.innerText = "Error de conexión.";
+            }
+        });
+    </script>
+</body>
+
+</html>
